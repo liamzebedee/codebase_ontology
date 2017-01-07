@@ -1,0 +1,2 @@
+decorator==4.0.10
+networkx==1.11

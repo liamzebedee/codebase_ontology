@@ -4,7 +4,7 @@ import multiprocessing
 import operator
 
 
-
+from pprint import pprint
 import os
 import sys
 import logging
@@ -45,6 +45,8 @@ class RefactoringTool(object):
 
         # Our stuff
         self.func_calls = {}
+        self.graph = nx.Graph()
+        self.named_graph_nodes = {} # name => id
 
 
     def refactor(self, items, write=False, doctests_only=False):
@@ -102,9 +104,15 @@ class RefactoringTool(object):
         input += "\n" # Silence certain parse errors
         
         tree = self.refactor_string(input, filename)
-        func_calls = get_func_calls(tree)
-        for call in func_calls:
-            self.func_calls[call] = self.func_calls.get(call, 0) + 1
+
+        _, module_name = os.path.split(filename)
+
+        parse_ast_into_graph(tree, self.graph, module_name)
+        
+        # func_calls = get_func_calls(tree)
+
+        # for call in func_calls:
+        #     self.func_calls[call] = self.func_calls.get(call, 0) + 1
 
 
     def refactor_string(self, data, name):
@@ -150,11 +158,14 @@ class FuncCallVisitor(ast.NodeVisitor):
             self.generic_visit(node)
 
 
+
 def get_func_calls(tree, depth=1):
     func_calls = []
     for node in ast.walk(tree):
+        if isinstance(node, ast.keyword):
+            print(node.arg)
+
         if isinstance(node, ast.Call):
-            
             callvisitor = FuncCallVisitor()
             callvisitor.visit(node.func)
             func_calls.append(callvisitor.name)
@@ -167,17 +178,115 @@ def get_top_100_calls(rt):
     for i in range(0, 100):
         print(sorted_x[i][0])
 
+def get_stats(file_or_dir):
+    rt = RefactoringTool()
+    rt.refactor(items=[file_or_dir])
+    return rt
+
+def compare_two_files(file_or_dir1, file_or_dir2):
+    codebase_rt = get_stats(file_or_dir1)
+    example_rt = get_stats(file_or_dir2)
+
+    for func in example_rt.func_calls:
+        print(func, ' ', codebase_rt.func_calls.get(func, 0))
+
+def check_some_stats():
+    # print(rt.func_calls)
+    # print(get_top_100_calls(rt))    
+    pass
+
+def parse_ast_into_graph(tree, graph, module_name):
+    for node in ast.walk(tree):
+        # Modules
+        if isinstance(node, ast.Module):
+            graph.add_node(module_name)
+
+        # Classes
+        elif isinstance(node, ast.ClassDef):
+            name = node.name
+
+            graph.add_node(name)
+
+        # Functions
+        elif isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
+            name = node.name
+            graph.add_node(name)
+
+        # Globals/nonlocals
+        elif isinstance(node, ast.Global) or isinstance(node, ast.Nonlocal):
+            for name in node.names:
+                graph.add_node(name)
+
+        # Attributes
+        elif isinstance(node, ast.Attribute):
+            name = node.attr
+            graph.add_node(name)
+
+        # Names
+        elif isinstance(node, ast.Name):
+            name = node.id
+            
+            if hasattr(__builtins__, name) or name == 'self':
+                continue
+            else:
+                graph.add_node(name)
+
+        # Args
+        elif isinstance(node, ast.arg):
+            name = node.arg
+            graph.add_node(name)
+
+            pass
+
+        # Keyword args
+        elif isinstance(node, ast.keyword):
+            if hasattr(node, 'arg'):
+                name = node.arg
+                graph.add_node(name)
+            pass
+
+def gen_graph(file_or_dir):
+    rt = RefactoringTool()
+    rt.refactor(items=[file_or_dir])
+    print(rt.graph.nodes())
+
+
+auto_i = 0
+def get_id():
+    global auto_i
+    auto_i += 1
+    return auto_i
+
 if __name__ == '__main__':
+    import networkx as nx
     import argparse
     import os
 
-    dir_from_where_script_is_called = os.getcwd()
-    rt = RefactoringTool()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input', help='Input file or dir', required=True)
+    parser.add_argument('-i2', '--input2', help='2nd Input file or dir', required=False)
+    args = parser.parse_args()
 
-    file_or_dir = sys.argv[1]
-    rt.refactor(items=[file_or_dir])
-    print(rt.func_calls)
-    # print(get_top_100_calls(rt))
+    dir_from_where_script_is_called = os.getcwd()
+    file_or_dir1 = args.input
+    file_or_dir2 = args.input2
+
+    if file_or_dir2:
+        compare_two_files(file_or_dir1, file_or_dir2)
+
+    rt = gen_graph(file_or_dir1)
+    
+
+
+
+
+
+
+    
+
+   
+
+
 
 
 
