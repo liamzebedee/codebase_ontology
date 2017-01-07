@@ -195,45 +195,55 @@ def check_some_stats():
     # print(get_top_100_calls(rt))    
     pass
 
-def parse_ast_into_graph(tree, graph, module_name):
-    for node in ast.walk(tree):
+def parse_ast_into_graph(tree, graph, module_name, parent_node=None):
+    for node in ast.iter_child_nodes(tree):
         # Modules
         if isinstance(node, ast.Module):
+            print('module: ', module_name)
             graph.add_node(module_name)
 
         # Classes
         elif isinstance(node, ast.ClassDef):
             name = node.name
+            print('[class] ', name)
 
             graph.add_node(name)
 
         # Functions
         elif isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
             name = node.name
+            print('[func] ', name)
             graph.add_node(name)
 
         # Globals/nonlocals
         elif isinstance(node, ast.Global) or isinstance(node, ast.Nonlocal):
             for name in node.names:
+                print('[global] ', name)
                 graph.add_node(name)
 
         # Attributes
         elif isinstance(node, ast.Attribute):
             name = node.attr
+            print('[attr] ', name)
             graph.add_node(name)
 
         # Names
         elif isinstance(node, ast.Name):
             name = node.id
             
-            if hasattr(__builtins__, name) or name == 'self':
+            if hasattr(__builtins__, name) or name == 'self' or name == '_':
                 continue
             else:
+                print('[name] ', name)
                 graph.add_node(name)
 
         # Args
         elif isinstance(node, ast.arg):
             name = node.arg
+            if name == 'self':
+                continue
+
+            print(name)
             graph.add_node(name)
 
             pass
@@ -242,8 +252,15 @@ def parse_ast_into_graph(tree, graph, module_name):
         elif isinstance(node, ast.keyword):
             if hasattr(node, 'arg'):
                 name = node.arg
+                if name == 'self':
+                    continue
+            
+                print(name)
                 graph.add_node(name)
             pass
+
+        parse_ast_into_graph(node, graph, module_name, parent_node=tree)
+
 
 def gen_graph(file_or_dir):
     rt = RefactoringTool()
