@@ -15,6 +15,9 @@ from itertools import chain
 
 from lib2to3.pgen2 import tokenize
 
+
+dir_from_where_script_is_called = os.getcwd()
+
 def _identity(obj):
     return obj
 
@@ -64,16 +67,17 @@ class RefactoringTool(object):
         """
         py_ext = os.extsep + "py"
         for dirpath, dirnames, filenames in os.walk(dir_name):
-
-
             dirnames.sort()
             filenames.sort()
             for name in filenames:
                 if (not name.endswith('_test.py') and not name.startswith(".") and
                     os.path.splitext(name)[1] == py_ext):
                     fullname = os.path.join(dirpath, name)
-                    
-                    print(fullname + '\n')
+
+                    # TODO fix this
+                    # module_path = os.path.relpath(fullname, start=dir_from_where_script_is_called)
+                    # print(module_path + '\n')
+                    # return
                     
                     self.refactor_file(fullname, write, doctests_only)
             # Modify dirnames in-place to remove subdirs with leading dots
@@ -195,16 +199,29 @@ def check_some_stats():
     # print(get_top_100_calls(rt))    
     pass
 
-def parse_ast_into_graph(tree, graph, module_name, parent_node=None):
-    for node in ast.iter_child_nodes(tree):
-        # Modules
-        if isinstance(node, ast.Module):
-            print('module: ', module_name)
-            graph.add_node(module_name)
+def generate_graph_node(module, _class, function, name):
+    pass
 
+
+# How we are going to do it:
+# Traverse the graph from the leafs to the root
+# For each import statement we encounter, IMPORT IT! and then get the .__file__ and analyse its source, running the same algorithm
+# https://docs.python.org/3/library/inspect.html
+# 
+
+
+def parse_ast_into_graph(tree, graph, module_name, parent_graph_node=None):
+    graph_node = None
+
+    # Modules
+    if isinstance(tree, ast.Module):
+        # graph.add_node()
+
+    for node in ast.iter_child_nodes(tree):
         # Classes
-        elif isinstance(node, ast.ClassDef):
+        if isinstance(node, ast.ClassDef):
             name = node.name
+
             print('[class] ', name)
 
             graph.add_node(name)
@@ -284,7 +301,6 @@ if __name__ == '__main__':
     parser.add_argument('-i2', '--input2', help='2nd Input file or dir', required=False)
     args = parser.parse_args()
 
-    dir_from_where_script_is_called = os.getcwd()
     file_or_dir1 = args.input
     file_or_dir2 = args.input2
 
