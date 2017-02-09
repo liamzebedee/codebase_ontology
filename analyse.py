@@ -18,7 +18,8 @@ import argparse
 import os
 
 
-
+import networkx as nx
+graph = nx.Graph()
 
 
 class Parser(object):
@@ -42,7 +43,7 @@ class Parser(object):
 		except Exception as err:
 			print("Error parsing %s" % name)
 
-		# print(nicedump(tree))
+		print(nicedump(tree))
 		process_ast(tree)
 
 
@@ -94,7 +95,7 @@ def get_name_for_node(node):
 
 	# Attributes
 	elif isinstance(node, ast.Attribute):
-		name = node.attr
+		name = get_name_for_node(node.value)+'.'+node.attr
 
 	# Names
 	elif isinstance(node, ast.Name):
@@ -123,16 +124,19 @@ def process_ast(tree):
 
 	return process(tree, parent_named_node=None)
 
-def process(node, parent_named_node=None):
+def process(node, parent_named_node=None, depth=0):
 	this_named_node = get_name_for_node(node)
 	if not this_named_node:
 		 this_named_node = parent_named_node
 	else:
-		print(this_named_node)
+		print((depth*'\t') + str(this_named_node))
+		depth += 1
+
 	children = get_children_for_node(node)
 	if children:
 		for child in get_children_for_node(node):
-			process(child, parent_named_node=this_named_node)
+			process(child, parent_named_node=this_named_node, depth=depth)
+
 	# if isinstance(node, ast.AST):
 	# 	# fields = [(a, _process(b, tablevel+1)) for a, b in ast.iter_fields(node) if a in interesting_attrs]
 	# 	# field for field in fields
@@ -177,7 +181,7 @@ def get_children_for_node(node):
 	if isinstance(node, ast.For) or isinstance(node, ast.AsyncFor):
 		# (expr target, expr iter, stmt* body, stmt* orelse)
 		children.append(node.target)
-		children.extend(node.iter)
+		children.append(node.iter)
 		children.extend(node.body)
 		children.extend(node.orelse)
 	if isinstance(node, ast.While):
@@ -297,7 +301,8 @@ def get_children_for_node(node):
 	 # | Constant(constant value)
 
 	if isinstance(node, ast.Attribute) or isinstance(node, ast.Subscript) or isinstance(node, ast.Starred):
-		children.append(node.value)
+		# children.append(node.value)
+		pass
 		# (expr value, identifier attr, expr_context ctx)
 		# Subscript(expr value, slice slice, expr_context ctx)
 		# | Starred(expr value, expr_context ctx)
@@ -378,7 +383,9 @@ identifier_field_names = ['id', 'name', 'module', 'attr', 'arg', 'asname']
 def nicedump2(tree):
 	def recurse(node):
 		ids = [id_ for field_name, val in ast.iter_fields(node) if field_name in identifier_field_names]
+		
 		print(ids)
+
 		get_children_for_node(node)
 
 	recurse(tree)
@@ -386,6 +393,7 @@ def nicedump2(tree):
 
 def nicedump(node):
 	interesting_attrs = ['body', 'targets', 'target', 'id', 'value', 'arguments', 'args', 'value', 'func', 'returns', 'name', 'n', 'arg', 'left', 'right', 's']
+	interesting_attrs += identifier_field_names
 
 	def _process(node, tablevel=1):
 		indent = tablevel * '\t'

@@ -130,16 +130,3 @@ module Python
 
     withitem = (expr context_expr, expr? optional_vars)
 ```
-
-what we're going to do with them:
- - Nodes
-     + Module (tf)
-     + ClassDef (tf.Session)
-         * bases
-     + FunctionDef/AsyncFunctionDef (tf.Session.run)
-         * args (fetches, feed_dict=None, options=None, run_metadata=None)
-     + 
-
-Delete
-AugAssign(expr target, operator op, expr value) (i += 1)
-AnnAssign (str: some_var)
